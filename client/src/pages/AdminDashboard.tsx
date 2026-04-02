@@ -56,28 +56,6 @@ export default function AdminDashboard() {
     },
   });
 
-  // Check if user is admin
-  if (!user || user.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
-        <Card className="border-0 shadow-lg max-w-md">
-          <CardHeader>
-            <CardTitle>Admin Access Required</CardTitle>
-            <CardDescription>You need to be logged in as an admin to access this page</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button onClick={() => window.location.href = getLoginUrl()} className="w-full bg-emerald-600 hover:bg-emerald-700">
-              Login as Admin
-            </Button>
-            <Button onClick={() => setLocation("/")} variant="outline" className="w-full">
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
