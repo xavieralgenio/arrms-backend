@@ -47,7 +47,6 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
 
-  // ✅ SINGLE useAuth call
   const { loading, user, logout } = useAuth();
 
   useEffect(() => {
@@ -58,34 +57,8 @@ export default function DashboardLayout({
     return <DashboardLayoutSkeleton />;
   }
 
-  // ✅ LOGIN SCREEN
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-muted/40">
-        <div className="flex flex-col items-center gap-6 p-10 max-w-md w-full border rounded-2xl shadow-xl bg-background">
-          <h1 className="text-2xl font-semibold tracking-tight text-center">
-            Welcome back
-          </h1>
+  // ❌ REMOVED auth gate (this is the key change)
 
-          <p className="text-sm text-muted-foreground text-center">
-            Sign in to access your dashboard.
-          </p>
-
-          <Button
-            onClick={() => {
-              window.location.href = getLoginUrl();
-            }}
-            size="lg"
-            className="w-full"
-          >
-            Sign in
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // ✅ PASS user + logout DOWN
   return (
     <SidebarProvider
       style={
@@ -128,9 +101,7 @@ function DashboardLayoutContent({
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (isCollapsed) {
-      setIsResizing(false);
-    }
+    if (isCollapsed) setIsResizing(false);
   }, [isCollapsed]);
 
   useEffect(() => {
@@ -146,9 +117,7 @@ function DashboardLayoutContent({
       }
     };
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
+    const handleMouseUp = () => setIsResizing(false);
 
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
@@ -167,12 +136,9 @@ function DashboardLayoutContent({
 
   return (
     <>
+      {/* SIDEBAR */}
       <div className="relative" ref={sidebarRef}>
-        <Sidebar
-          collapsible="icon"
-          className="border-r-0"
-          disableTransition={isResizing}
-        >
+        <Sidebar collapsible="icon" className="border-r-0">
           <SidebarHeader className="h-16 justify-center">
             <div className="flex items-center gap-3 px-2 w-full">
               <button
@@ -208,48 +174,71 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
+          {/* 🔥 Sidebar Footer (Login/Logout toggle) */}
           <SidebarFooter className="p-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 w-full">
-                  <Avatar className="h-9 w-9 border">
-                    <AvatarFallback>
-                      {user?.name?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-3 w-full">
+                    <Avatar className="h-9 w-9 border">
+                      <AvatarFallback>
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  {!isCollapsed && (
-                    <div>
-                      <p>{user?.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {user?.email}
-                      </p>
-                    </div>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
+                    {!isCollapsed && (
+                      <div>
+                        <p>{user?.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {user?.email}
+                        </p>
+                      </div>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={logout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                className="w-full"
+                onClick={() => {
+                  window.location.href = getLoginUrl();
+                }}
+              >
+                Login
+              </Button>
+            )}
           </SidebarFooter>
         </Sidebar>
       </div>
 
+      {/* MAIN CONTENT */}
       <SidebarInset>
-        {/* ✅ Desktop Header */}
+        {/* 🔥 Header Login/Logout */}
         <div className="hidden md:flex justify-end items-center h-14 px-4 border-b">
-          <Button variant="ghost" onClick={logout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          {user ? (
+            <Button variant="ghost" onClick={logout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          ) : (
+            <Button
+              onClick={() => {
+                window.location.href = getLoginUrl();
+              }}
+            >
+              Login
+            </Button>
+          )}
         </div>
 
-        {/* ✅ Mobile Header */}
+        {/* Mobile */}
         {isMobile && (
           <div className="flex border-b h-14 items-center px-2">
             <SidebarTrigger />
