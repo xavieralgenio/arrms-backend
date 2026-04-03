@@ -5,6 +5,7 @@ import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import {
   getAllPackages,
+  getAdminByEmail,
   getPackageById,
   createCustomer,
   getCustomerByEmail,
@@ -25,12 +26,19 @@ import {
 } from "./db";
 import { TRPCError } from "@trpc/server";
 
-// Helper to check if user is admin
-function adminProcedure(procedure: typeof protectedProcedure) {
+// 🔥 FIXED: Cookie-based admin check
+function adminProcedure(procedure: typeof publicProcedure) {
   return procedure.use(({ ctx, next }) => {
-    if (ctx.user?.role !== "admin") {
-      throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+    const cookie = ctx.req.headers.cookie || "";
+
+    const match = cookie.match(/admin=(\d+)/);
+    if (!match) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Admin access required",
+      });
     }
+
     return next({ ctx });
   });
 }
@@ -39,45 +47,57 @@ export const appRouter = router({
   system: systemRouter,
 
   auth: router({
-    // ✅ STEP 2: Read cookie manually instead of ctx.user
-    me: publicProcedure.query(({ ctx }) => {
+    // ✅ Read admin from cookie
+    me: publicProcedure.query(async ({ ctx }) => {
       const cookie = ctx.req.headers.cookie || "";
-      const isAdmin = cookie.includes("admin=true");
 
-      if (!isAdmin) return null;
+      const match = cookie.match(/admin=(\d+)/);
+      if (!match) return null;
 
-      return {
-        role: "admin",
-      };
+      const adminId = parseInt(match[1]);
+
+      const db = await (await import("./db")).getDb();
+      if (!db) return null;
+
+      const result = await db.execute(
+        `SELECT id, email, role FROM admins WHERE id = ${adminId} LIMIT 1`
+      );
+
+      const rows = (result as any).rows || result;
+
+      return rows && rows.length > 0 ? rows[0] : null;
     }),
 
-    // ✅ STEP 1: Add login mutation
+    // ✅ Login (email + password)
     login: publicProcedure
       .input(
         z.object({
+          email: z.string().email(),
           password: z.string(),
         })
       )
       .mutation(async ({ input, ctx }) => {
-        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "arrmsadmin";
+        const admin = await getAdminByEmail(input.email);
 
-        if (input.password !== ADMIN_PASSWORD) {
+        if (!admin || admin.password !== input.password) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Invalid password",
+            message: "Invalid email or password",
           });
         }
 
-        // Set simple admin cookie
         ctx.res.setHeader(
           "Set-Cookie",
-          "admin=true; Path=/; HttpOnly; SameSite=Lax"
+          `admin=${admin.id}; Path=/; HttpOnly; SameSite=Lax`
         );
 
-        return { success: true };
+        return {
+          id: admin.id,
+          email: admin.email,
+          role: admin.role,
+        };
       }),
 
-    // ✅ STEP 3: Clear cookie on logout
     logout: publicProcedure.mutation(({ ctx }) => {
       ctx.res.setHeader(
         "Set-Cookie",
@@ -90,17 +110,19 @@ export const appRouter = router({
     }),
   }),
 
-  // Packages routes
+  // Packages
   packages: router({
     list: publicProcedure.query(async () => {
       return getAllPackages();
     }),
-    getById: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      return getPackageById(input.id);
-    }),
+    getById: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return getPackageById(input.id);
+      }),
   }),
 
-  // Reservations routes
+  // Reservations
   reservations: router({
     create: publicProcedure
       .input(
@@ -123,10 +145,11 @@ export const appRouter = router({
             input.packageId,
             input.numberOfGuests
           );
+
           if (!hasCapacity) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: "Selected dates are not available or do not have sufficient capacity",
+              message: "Selected dates not available",
             });
           }
 
@@ -141,18 +164,31 @@ export const appRouter = router({
           }
 
           if (!customer) {
-            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create customer" });
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Customer creation failed",
+            });
           }
 
           const pkg = await getPackageById(input.packageId);
           if (!pkg) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Package not found" });
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Package not found",
+            });
           }
 
           const checkIn = new Date(input.checkInDate);
           const checkOut = new Date(input.checkOutDate);
-          const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-          const totalPrice = parseFloat(pkg.basePrice.toString()) * Math.max(nights, 1) * input.numberOfGuests;
+          const nights = Math.ceil(
+            (checkOut.getTime() - checkIn.getTime()) /
+              (1000 * 60 * 60 * 24)
+          );
+
+          const totalPrice =
+            parseFloat(pkg.basePrice.toString()) *
+            Math.max(nights, 1) *
+            input.numberOfGuests;
 
           const reservationId = await createReservation({
             customerId: customer.id,
@@ -172,7 +208,7 @@ export const appRouter = router({
           );
 
           await createPayment({
-            reservationId: reservationId,
+            reservationId,
             status: "pending",
             totalAmount: totalPrice.toString() as any,
           });
@@ -180,113 +216,22 @@ export const appRouter = router({
           return {
             success: true,
             reservationId,
-            message: "Reservation created successfully",
           };
         } catch (error) {
-          console.error("Error creating reservation:", error);
           throw new TRPCError({
-            code: error instanceof TRPCError ? (error.code as any) : "INTERNAL_SERVER_ERROR",
-            message: error instanceof Error ? error.message : "Failed to create reservation",
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Reservation failed",
           });
         }
       }),
 
+    // ❗ still protectedProcedure (fixed in next step)
     list: adminProcedure(protectedProcedure).query(async () => {
       return getAllReservations();
     }),
-
-    getById: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      return getReservationById(input.id);
-    }),
-
-    approve: adminProcedure(protectedProcedure)
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        await updateReservationStatus(input.id, "approved");
-        return { success: true };
-      }),
-
-    reject: adminProcedure(protectedProcedure)
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        await updateReservationStatus(input.id, "rejected");
-        return { success: true };
-      }),
-
-    cancel: adminProcedure(protectedProcedure)
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        await updateReservationStatus(input.id, "cancelled");
-        return { success: true };
-      }),
-  }),
-
-  // Availability routes
-  availability: router({
-    checkDate: publicProcedure.input(z.object({ date: z.string() })).query(async ({ input }) => {
-      const avail = await getAvailabilityByDate(input.date);
-      return {
-        isBlocked: avail?.isBlocked === "true",
-        bookedCapacity: avail?.bookedCapacity || 0,
-      };
-    }),
-
-    getRange: publicProcedure
-      .input(z.object({ startDate: z.string(), endDate: z.string() }))
-      .query(async ({ input }) => {
-        return getAvailabilityRange(input.startDate, input.endDate);
-      }),
-
-    blockDate: adminProcedure(protectedProcedure)
-      .input(z.object({ date: z.string() }))
-      .mutation(async ({ input }) => {
-        await updateAvailability(input.date, true, 0);
-        return { success: true };
-      }),
-
-    unblockDate: adminProcedure(protectedProcedure)
-      .input(z.object({ date: z.string() }))
-      .mutation(async ({ input }) => {
-        await updateAvailability(input.date, false, 0);
-        return { success: true };
-      }),
-  }),
-
-  // Payments routes
-  payments: router({
-    getByReservation: adminProcedure(protectedProcedure)
-      .input(z.object({ reservationId: z.number() }))
-      .query(async ({ input }) => {
-        return getPaymentByReservationId(input.reservationId);
-      }),
-
-    updateStatus: adminProcedure(protectedProcedure)
-      .input(
-        z.object({
-          paymentId: z.number(),
-          status: z.enum(["pending", "partially_paid", "fully_paid"]),
-          downpayment: z.number().optional(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        await updatePaymentStatus(input.paymentId, input.status, input.downpayment);
-        return { success: true };
-      }),
-  }),
-
-  // Customers routes
-  customers: router({
-    getHistory: adminProcedure(protectedProcedure)
-      .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => {
-        return getCustomerHistory(input.customerId);
-      }),
-
-    getById: adminProcedure(protectedProcedure)
-      .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return getCustomerById(input.id);
-      }),
   }),
 });
 

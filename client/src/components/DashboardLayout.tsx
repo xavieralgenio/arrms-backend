@@ -19,7 +19,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
+// ❌ REMOVED getLoginUrl import
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -56,8 +56,6 @@ export default function DashboardLayout({
   if (loading) {
     return <DashboardLayoutSkeleton />;
   }
-
-  // ❌ REMOVED auth gate (this is the key change)
 
   return (
     <SidebarProvider
@@ -174,7 +172,7 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
-          {/* 🔥 Sidebar Footer (Login/Logout toggle) */}
+          {/* 🔥 Sidebar Footer */}
           <SidebarFooter className="p-3">
             {user ? (
               <DropdownMenu>
@@ -208,7 +206,7 @@ function DashboardLayoutContent({
               <Button
                 className="w-full"
                 onClick={() => {
-                  window.location.href = getLoginUrl();
+                  window.location.href = "/admin-login"; // ✅ FIXED
                 }}
               >
                 Login
@@ -220,7 +218,7 @@ function DashboardLayoutContent({
 
       {/* MAIN CONTENT */}
       <SidebarInset>
-        {/* 🔥 Header Login/Logout */}
+        {/* Header */}
         <div className="hidden md:flex justify-end items-center h-14 px-4 border-b">
           {user ? (
             <Button variant="ghost" onClick={logout}>
@@ -230,7 +228,7 @@ function DashboardLayoutContent({
           ) : (
             <Button
               onClick={() => {
-                window.location.href = getLoginUrl();
+                window.location.href = "/admin-login"; // ✅ FIXED
               }}
             >
               Login

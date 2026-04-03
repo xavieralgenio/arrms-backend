@@ -1,4 +1,3 @@
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -9,8 +8,12 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
-    options ?? {};
+  // ✅ FIX: use local admin login route instead of OAuth
+  const {
+    redirectOnUnauthenticated = false,
+    redirectPath = "/admin-login",
+  } = options ?? {};
+
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
@@ -63,6 +66,7 @@ export function useAuth(options?: UseAuthOptions) {
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
 
+    // ✅ FIX: redirect to local admin login page
     window.location.href = redirectPath;
   }, [
     redirectOnUnauthenticated,

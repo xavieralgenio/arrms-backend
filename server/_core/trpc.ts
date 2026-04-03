@@ -10,11 +10,13 @@ const t = initTRPC.context<TrpcContext>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-const requireUser = t.middleware(async opts => {
-  const { ctx, next } = opts;
-
+// ✅ REQUIRE AUTHENTICATED USER (uses ctx.user from context.ts)
+const requireUser = t.middleware(async ({ ctx, next }) => {
   if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: UNAUTHED_ERR_MSG,
+    });
   }
 
   return next({
@@ -27,12 +29,21 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
+// ✅ REQUIRE ADMIN ROLE
 export const adminProcedure = t.procedure.use(
-  t.middleware(async opts => {
-    const { ctx, next } = opts;
+  t.middleware(async ({ ctx, next }) => {
+    if (!ctx.user) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: UNAUTHED_ERR_MSG,
+      });
+    }
 
-    if (!ctx.user || ctx.user.role !== 'admin') {
-      throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    if (ctx.user.role !== "admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: NOT_ADMIN_ERR_MSG,
+      });
     }
 
     return next({
@@ -41,5 +52,5 @@ export const adminProcedure = t.procedure.use(
         user: ctx.user,
       },
     });
-  }),
+  })
 );

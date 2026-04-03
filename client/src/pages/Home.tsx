@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import { MapPin, Phone, Mail, Users, Utensils, Waves, Wifi } from "lucide-react";
 
 export default function Home() {
@@ -59,7 +58,7 @@ export default function Home() {
             ) : (
               <Button
                 onClick={() => {
-                  window.location.href = getLoginUrl();
+                  setLocation("/admin-login"); // ✅ FIXED
                 }}
               >
                 Login
