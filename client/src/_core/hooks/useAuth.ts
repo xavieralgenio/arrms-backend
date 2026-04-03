@@ -1,5 +1,4 @@
 import { trpc } from "@/lib/trpc";
-import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
 
 type UseAuthOptions = {
@@ -17,7 +16,7 @@ export function useAuth(options?: UseAuthOptions) {
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
-    refetchOnWindowFocus: false, // ✅ FIXED (was causing redirects)
+    refetchOnWindowFocus: false,
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -29,17 +28,12 @@ export function useAuth(options?: UseAuthOptions) {
   const logout = useCallback(async () => {
     try {
       await logoutMutation.mutateAsync();
-    } catch (error: unknown) {
-      if (
-        error instanceof TRPCClientError &&
-        error.data?.code === "UNAUTHORIZED"
-      ) {
-        return;
-      }
-      throw error;
+    } catch {
+      // ignore
     } finally {
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
+      window.location.href = "/login"; // ✅ force redirect
     }
   }, [logoutMutation, utils]);
 
@@ -49,7 +43,6 @@ export function useAuth(options?: UseAuthOptions) {
       loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
-
       role: meQuery.data?.role ?? "user",
       isAdmin: meQuery.data?.role === "admin",
     };
@@ -61,33 +54,27 @@ export function useAuth(options?: UseAuthOptions) {
     logoutMutation.isPending,
   ]);
 
-  // ✅ Only run once (prevents loops)
+  // ✅ Run ONCE (no loop)
   useEffect(() => {
     utils.auth.me.invalidate();
   }, []);
 
+  // ✅ Redirect logic
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
-    if (meQuery.isLoading || logoutMutation.isPending) return;
+    if (state.loading) return;
     if (state.user) return;
-    if (typeof window === "undefined") return;
 
-    if (window.location.pathname === redirectPath) return;
-
-    window.location.href = redirectPath;
-  }, [
-    redirectOnUnauthenticated,
-    redirectPath,
-    logoutMutation.isPending,
-    meQuery.isLoading,
-    state.user,
-  ]);
+    if (typeof window !== "undefined") {
+      if (window.location.pathname !== redirectPath) {
+        window.location.href = redirectPath;
+      }
+    }
+  }, [redirectOnUnauthenticated, redirectPath, state]);
 
   return {
     ...state,
-    refresh: () => {
-      utils.auth.me.invalidate();
-    },
+    refresh: () => utils.auth.me.invalidate(),
     logout,
   };
 }

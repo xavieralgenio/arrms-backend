@@ -18,7 +18,7 @@ import PostLogin from "./pages/PostLogin";
 import Register from "./pages/Register";
 import OAuthCallback from "./pages/OAuthCallback";
 
-// ✅ FIX: create stable wrapper components (prevents remount loop)
+// ✅ WRAPPERS
 function AdminDashboardRoute() {
   return (
     <AdminRoute>
@@ -42,15 +42,15 @@ function Router() {
       <Route path="/packages" component={Packages} />
       <Route path="/book" component={Book} />
 
-      {/* OAuth */}
-      <Route path="/oauth/callback" component={OAuthCallback} />
-
       {/* Auth */}
       <Route path="/login" component={Login} />
       <Route path="/post-login" component={PostLogin} />
       <Route path="/register" component={Register} />
 
-      {/* ✅ FIXED admin routes */}
+      {/* OAuth */}
+      <Route path="/oauth/callback" component={OAuthCallback} />
+
+      {/* ADMIN */}
       <Route path="/admin" component={AdminDashboardRoute} />
       <Route path="/admin/customers" component={CustomerRecordsRoute} />
 
