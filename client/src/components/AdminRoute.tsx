@@ -1,25 +1,45 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import { ReactNode, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 
-export default function AdminRoute({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { user } = useAuth();
+type Props = {
+  children: ReactNode;
+};
+
+export default function AdminRoute({ children }: Props) {
+  const { user, loading } = useAuth({
+    redirectOnUnauthenticated: false,
+  });
+
   const [, setLocation] = useLocation();
 
+  // 🔥 Handle redirects SAFELY after loading
   useEffect(() => {
-    if (!user || user.role !== "admin") {
-      setLocation("/admin/login");
-    }
-  }, [user]);
+    if (loading) return;
 
-  // Prevent render while checking
+    // ❌ Not logged in
+    if (!user) {
+      setLocation("/login");
+      return;
+    }
+
+    // ❌ Not admin
+    if (user.role !== "admin") {
+      setLocation("/");
+      return;
+    }
+  }, [user, loading, setLocation]);
+
+  // ⏳ Wait for auth check
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  // 🔥 Prevent render while redirecting
   if (!user || user.role !== "admin") {
     return null;
   }
 
+  // ✅ Admin allowed
   return <>{children}</>;
 }

@@ -8,17 +8,16 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  // ✅ FIX: use local admin login route instead of OAuth
   const {
     redirectOnUnauthenticated = false,
-    redirectPath = "/admin-login",
+    redirectPath = "/login",
   } = options ?? {};
 
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false, // ✅ FIXED (was causing redirects)
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -50,6 +49,9 @@ export function useAuth(options?: UseAuthOptions) {
       loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
+
+      role: meQuery.data?.role ?? "user",
+      isAdmin: meQuery.data?.role === "admin",
     };
   }, [
     meQuery.data,
@@ -59,14 +61,19 @@ export function useAuth(options?: UseAuthOptions) {
     logoutMutation.isPending,
   ]);
 
+  // ✅ Only run once (prevents loops)
+  useEffect(() => {
+    utils.auth.me.invalidate();
+  }, []);
+
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
+
     if (window.location.pathname === redirectPath) return;
 
-    // ✅ FIX: redirect to local admin login page
     window.location.href = redirectPath;
   }, [
     redirectOnUnauthenticated,
@@ -78,7 +85,9 @@ export function useAuth(options?: UseAuthOptions) {
 
   return {
     ...state,
-    refresh: () => meQuery.refetch(),
+    refresh: () => {
+      utils.auth.me.invalidate();
+    },
     logout,
   };
 }

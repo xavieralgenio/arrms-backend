@@ -12,34 +12,49 @@ import Book from "./pages/Book";
 import AdminRoute from "@/components/AdminRoute";
 import AdminDashboard from "./pages/AdminDashboard";
 import CustomerRecords from "./pages/CustomerRecords";
-import AdminLogin from "@/pages/AdminLogin";
 
-// ✅ ADD THIS
+import Login from "./pages/Login";
+import PostLogin from "./pages/PostLogin";
+import Register from "./pages/Register";
 import OAuthCallback from "./pages/OAuthCallback";
+
+// ✅ FIX: create stable wrapper components (prevents remount loop)
+function AdminDashboardRoute() {
+  return (
+    <AdminRoute>
+      <AdminDashboard />
+    </AdminRoute>
+  );
+}
+
+function CustomerRecordsRoute() {
+  return (
+    <AdminRoute>
+      <CustomerRecords />
+    </AdminRoute>
+  );
+}
 
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/packages"} component={Packages} />
-      <Route path={"/book"} component={Book} />
+      <Route path="/" component={Home} />
+      <Route path="/packages" component={Packages} />
+      <Route path="/book" component={Book} />
 
-      {/* ✅ ADD THIS ROUTE */}
-      <Route path={"/oauth/callback"} component={OAuthCallback} />
+      {/* OAuth */}
+      <Route path="/oauth/callback" component={OAuthCallback} />
 
-      <Route
-        path="/admin"
-        component={() => (
-          <AdminRoute>
-            <AdminDashboard />
-          </AdminRoute>
-        )}
-      />
+      {/* Auth */}
+      <Route path="/login" component={Login} />
+      <Route path="/post-login" component={PostLogin} />
+      <Route path="/register" component={Register} />
 
-      <Route path={"/admin/customers"} component={CustomerRecords} />
-      <Route path="/admin-login" component={AdminLogin} />
+      {/* ✅ FIXED admin routes */}
+      <Route path="/admin" component={AdminDashboardRoute} />
+      <Route path="/admin/customers" component={CustomerRecordsRoute} />
 
-      <Route path={"/404"} component={NotFound} />
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );

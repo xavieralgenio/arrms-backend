@@ -15,10 +15,34 @@ import {
 } from "./db";
 import { TRPCError } from "@trpc/server";
 
-// 🔥 Cookie-based admin check
+// ✅ Helper to ensure DB exists
+async function getSafeDb() {
+  const db = await (await import("./db")).getDb();
+
+  if (!db) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Database not available",
+    });
+  }
+
+  return db;
+}
+
+// ✅ FIXED admin check (more reliable)
 function adminProcedure(procedure: typeof publicProcedure) {
-  return procedure.use(({ ctx, next }) => {
-    const cookie = ctx.req.headers.cookie || "";
+  return procedure.use(async ({ ctx, next }) => {
+    const cookie = ctx.req.headers.cookie;
+
+    console.log("[Auth] Incoming cookies:", cookie);
+
+    if (!cookie) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "No cookies found",
+      });
+    }
+
     const match = cookie.match(/admin=(\d+)/);
 
     if (!match) {
@@ -28,25 +52,28 @@ function adminProcedure(procedure: typeof publicProcedure) {
       });
     }
 
-    return next({ ctx });
+    return next();
   });
 }
 
 export const appRouter = router({
   system: systemRouter,
 
+  // ================= AUTH =================
   auth: router({
-    // ✅ Read admin from cookie
     me: publicProcedure.query(async ({ ctx }) => {
-      const cookie = ctx.req.headers.cookie || "";
-      const match = cookie.match(/admin=(\d+)/);
+      const cookie = ctx.req.headers.cookie;
 
+      console.log("[Auth.me] cookies:", cookie);
+
+      if (!cookie) return null;
+
+      const match = cookie.match(/admin=(\d+)/);
       if (!match) return null;
 
       const adminId = parseInt(match[1]);
 
-      const db = await (await import("./db")).getDb();
-      if (!db) return null;
+      const db = await getSafeDb();
 
       const result = await db.execute(
         `SELECT id, email, role FROM admins WHERE id = ${adminId} LIMIT 1`
@@ -57,7 +84,6 @@ export const appRouter = router({
       return rows && rows.length > 0 ? rows[0] : null;
     }),
 
-    // ✅ LOGIN (PLAIN TEXT — DEBUG SAFE)
     login: publicProcedure
       .input(
         z.object({
@@ -68,11 +94,6 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const admin = await getAdminByEmail(input.email);
 
-        console.log("LOGIN DEBUG:", {
-          inputPassword: input.password,
-          dbPassword: admin?.password,
-        });
-
         if (!admin || String(admin.password) !== String(input.password)) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
@@ -80,11 +101,13 @@ export const appRouter = router({
           });
         }
 
-        // ✅ COOKIE FIX FOR RENDER
+        // ✅ SIMPLE + STABLE COOKIE
         ctx.res.setHeader(
           "Set-Cookie",
-          `admin=${admin.id}; Path=/; HttpOnly; Secure; SameSite=None`
+          `admin=${admin.id}; Path=/; SameSite=Lax`
         );
+
+        console.log("[Auth] Cookie set for admin:", admin.id);
 
         return {
           id: admin.id,
@@ -96,16 +119,16 @@ export const appRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => {
       ctx.res.setHeader(
         "Set-Cookie",
-        "admin=; Path=/; HttpOnly; Max-Age=0"
+        `admin=; Path=/; Max-Age=0; SameSite=Lax`
       );
 
-      return {
-        success: true,
-      } as const;
+      console.log("[Auth] Logged out");
+
+      return { success: true } as const;
     }),
   }),
 
-  // Packages
+  // ================= PACKAGES =================
   packages: router({
     list: publicProcedure.query(async () => {
       return getAllPackages();
@@ -118,7 +141,7 @@ export const appRouter = router({
       }),
   }),
 
-  // Reservations
+  // ================= RESERVATIONS =================
   reservations: router({
     create: publicProcedure
       .input(
@@ -231,6 +254,49 @@ export const appRouter = router({
     list: adminProcedure(protectedProcedure).query(async () => {
       return getAllReservations();
     }),
+
+    approve: adminProcedure(protectedProcedure)
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getSafeDb();
+        await db.execute(
+          `UPDATE reservations SET status='approved' WHERE id=${input.id}`
+        );
+        return { success: true };
+      }),
+
+    reject: adminProcedure(protectedProcedure)
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getSafeDb();
+        await db.execute(
+          `UPDATE reservations SET status='rejected' WHERE id=${input.id}`
+        );
+        return { success: true };
+      }),
+
+    cancel: adminProcedure(protectedProcedure)
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getSafeDb();
+        await db.execute(
+          `UPDATE reservations SET status='cancelled' WHERE id=${input.id}`
+        );
+        return { success: true };
+      }),
+  }),
+
+  // ================= AVAILABILITY =================
+  availability: router({
+    blockDate: adminProcedure(protectedProcedure)
+      .input(z.object({ date: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getSafeDb();
+        await db.execute(
+          `INSERT INTO blocked_dates (date) VALUES ('${input.date}')`
+        );
+        return { success: true };
+      }),
   }),
 });
 

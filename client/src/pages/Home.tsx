@@ -22,7 +22,6 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="text-2xl font-bold text-emerald-600">Angela's Resort</div>
 
-          {/* 🔥 NAV RIGHT SIDE */}
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -50,16 +49,15 @@ export default function Home() {
               </Button>
             )}
 
-            {/* ✅ LOGIN / LOGOUT BUTTON */}
+            {/* ✅ FIXED LOGIN BUTTON STYLE */}
             {user ? (
               <Button variant="ghost" onClick={logout}>
                 Logout
               </Button>
             ) : (
               <Button
-                onClick={() => {
-                  setLocation("/admin-login"); // ✅ FIXED
-                }}
+                onClick={() => setLocation("/login")}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 Login
               </Button>
@@ -174,7 +172,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-slate-900 text-white py-8 text-center">
         <p>&copy; 2024 Angela's Resort</p>
       </footer>

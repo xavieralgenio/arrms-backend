@@ -8,22 +8,23 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { Loader2, LogOut, Search, Users } from "lucide-react";
-// ❌ REMOVED getLoginUrl import
 
 export default function CustomerRecords() {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
-  // Fetch all reservations to build customer list
+  // Fetch all reservations
   const { data: reservations, isLoading } = trpc.reservations.list.useQuery(undefined, {
     enabled: user?.role === "admin",
   });
 
-  // Build unique customer list from reservations
+  // Build unique customers
   const customers = reservations
-    ? Array.from(new Map(reservations.map((r) => [r.customerId, r])).values()).filter((r) => r.customerId)
+    ? Array.from(
+        new Map(reservations.map((r) => [r.customerId, r])).values()
+      ).filter((r) => r.customerId)
     : [];
 
   const filteredCustomers = customers.filter((customer) => {
@@ -33,6 +34,15 @@ export default function CustomerRecords() {
       customer.id?.toString().includes(searchLower)
     );
   });
+
+  // ✅ Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   // ❗ NOT ADMIN
   if (!user || user.role !== "admin") {
@@ -47,10 +57,10 @@ export default function CustomerRecords() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
-              onClick={() => (window.location.href = "/admin-login")} // ✅ FIXED
+              onClick={() => setLocation("/login")} // ✅ FIXED HERE
               className="w-full bg-emerald-600 hover:bg-emerald-700"
             >
-              Login as Admin
+              Login
             </Button>
             <Button
               onClick={() => setLocation("/")}
@@ -99,7 +109,7 @@ export default function CustomerRecords() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Search Bar */}
+            {/* Search */}
             <div className="mb-6 flex gap-2">
               <div className="flex-1">
                 <Label htmlFor="search" className="sr-only">
@@ -118,7 +128,7 @@ export default function CustomerRecords() {
               </div>
             </div>
 
-            {/* Customer List */}
+            {/* List */}
             {isLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -127,7 +137,9 @@ export default function CustomerRecords() {
               <div className="space-y-4">
                 {filteredCustomers.map((customer) => {
                   const customerReservations =
-                    reservations?.filter((r) => r.customerId === customer.customerId) || [];
+                    reservations?.filter(
+                      (r) => r.customerId === customer.customerId
+                    ) || [];
 
                   return (
                     <Card key={customer.customerId} className="border border-slate-200">
@@ -165,7 +177,6 @@ export default function CustomerRecords() {
                             </div>
                           </div>
 
-                          {/* Dialog stays unchanged */}
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
@@ -177,7 +188,6 @@ export default function CustomerRecords() {
                               </Button>
                             </DialogTrigger>
 
-                            {/* KEEP REST SAME */}
                             <DialogContent className="max-w-2xl">
                               <DialogHeader>
                                 <DialogTitle>Customer Details</DialogTitle>
@@ -185,8 +195,6 @@ export default function CustomerRecords() {
                                   Customer ID: {selectedCustomer?.customerId}
                                 </DialogDescription>
                               </DialogHeader>
-
-                              {/* (unchanged content below) */}
                             </DialogContent>
                           </Dialog>
                         </div>

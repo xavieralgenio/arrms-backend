@@ -5,12 +5,11 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-// ❌ REMOVED getLoginUrl import
 import "./index.css";
 
 const queryClient = new QueryClient();
 
-// ✅ Redirect to LOCAL login instead of OAuth
+// ✅ FIXED: redirect to unified login instead of admin-only login
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
@@ -19,8 +18,8 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  // 🔥 FIX: redirect to admin login page
-  window.location.href = "/admin-login";
+  // ✅ CHANGED HERE
+  window.location.href = "/login";
 };
 
 queryClient.getQueryCache().subscribe((event) => {

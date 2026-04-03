@@ -19,7 +19,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-// ❌ REMOVED getLoginUrl import
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -206,7 +205,7 @@ function DashboardLayoutContent({
               <Button
                 className="w-full"
                 onClick={() => {
-                  window.location.href = "/admin-login"; // ✅ FIXED
+                  window.location.href = "/login"; 
                 }}
               >
                 Login
@@ -228,7 +227,7 @@ function DashboardLayoutContent({
           ) : (
             <Button
               onClick={() => {
-                window.location.href = "/admin-login"; // ✅ FIXED
+                window.location.href = "/login"; 
               }}
             >
               Login

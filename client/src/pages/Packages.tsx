@@ -46,6 +46,8 @@ export default function Packages() {
           >
             Angela's Resort
           </div>
+
+          {/* ✅ UPDATED NAVIGATION */}
           <div className="flex gap-4">
             <Button
               variant="ghost"
@@ -54,12 +56,21 @@ export default function Packages() {
             >
               Home
             </Button>
+
             <Button
               variant="ghost"
               onClick={() => setLocation("/packages")}
               className="text-slate-700 hover:text-emerald-600 font-semibold"
             >
               Packages
+            </Button>
+
+            {/* ✅ NEW: LOGIN BUTTON */}
+            <Button
+              onClick={() => setLocation("/login")}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Login
             </Button>
           </div>
         </div>
@@ -87,17 +98,24 @@ export default function Packages() {
                   <div className={`h-2 ${pkg.type === "day_tour" ? "bg-blue-500" : pkg.type === "overnight" ? "bg-purple-500" : "bg-pink-500"}`} />
                   <CardHeader>
                     <div className="flex justify-between items-start mb-2">
-                      <Badge className={getPackageTypeColor(pkg.type)}>{getPackageTypeLabel(pkg.type)}</Badge>
-                      <span className="text-2xl font-bold text-emerald-600">₱{parseFloat(pkg.basePrice.toString()).toLocaleString()}</span>
+                      <Badge className={getPackageTypeColor(pkg.type)}>
+                        {getPackageTypeLabel(pkg.type)}
+                      </Badge>
+                      <span className="text-2xl font-bold text-emerald-600">
+                        ₱{parseFloat(pkg.basePrice.toString()).toLocaleString()}
+                      </span>
                     </div>
                     <CardTitle className="text-2xl">{pkg.name}</CardTitle>
                     <CardDescription>{pkg.duration || "Flexible duration"}</CardDescription>
                   </CardHeader>
+
                   <CardContent>
                     <p className="text-slate-600 mb-6">{pkg.description}</p>
 
                     <div className="mb-6">
-                      <h4 className="font-semibold text-slate-900 mb-3">Amenities & Features:</h4>
+                      <h4 className="font-semibold text-slate-900 mb-3">
+                        Amenities & Features:
+                      </h4>
                       <ul className="space-y-2">
                         {pkg.amenities
                           ? JSON.parse(pkg.amenities).map((amenity: string, idx: number) => (
@@ -125,7 +143,10 @@ export default function Packages() {
 
                     <div className="mb-6 p-4 bg-slate-50 rounded-lg">
                       <p className="text-sm text-slate-600">
-                        <span className="font-semibold text-slate-900">Max Capacity:</span> {pkg.maxCapacity} guests
+                        <span className="font-semibold text-slate-900">
+                          Max Capacity:
+                        </span>{" "}
+                        {pkg.maxCapacity} guests
                       </p>
                     </div>
 
@@ -141,7 +162,9 @@ export default function Packages() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-slate-600 text-lg">No packages available at the moment.</p>
+              <p className="text-slate-600 text-lg">
+                No packages available at the moment.
+              </p>
             </div>
           )}
         </div>
