@@ -1,10 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { MapPin, Phone, Mail, Users, Utensils, Waves, Wifi } from "lucide-react";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
 
   const amenities = [
     { icon: Waves, name: "Swimming Pool", description: "Olympic-sized pool with lounging area" },
@@ -34,13 +36,15 @@ export default function Home() {
             >
               Packages
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setLocation("/admin")}
-              className="text-slate-700 hover:text-emerald-600"
-            >
-              Admin
-            </Button>
+            {user?.role === "admin" && (
+  <Button
+    variant="ghost"
+    onClick={() => setLocation("/admin")}
+    className="text-slate-700 hover:text-emerald-600"
+  >
+    Admin
+  </Button>
+)}
           </div>
         </div>
       </nav>
