@@ -1,5 +1,3 @@
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
@@ -9,29 +7,20 @@ import {
   getPackageById,
   createCustomer,
   getCustomerByEmail,
-  getCustomerById,
   createReservation,
-  getReservationById,
   getAllReservations,
-  updateReservationStatus,
   createPayment,
-  getPaymentByReservationId,
-  updatePaymentStatus,
-  getAvailabilityByDate,
-  getAvailabilityRange,
-  updateAvailability,
-  getCustomerHistory,
   checkDateCapacity,
   updateDateCapacityAfterReservation,
 } from "./db";
 import { TRPCError } from "@trpc/server";
 
-// 🔥 FIXED: Cookie-based admin check
+// 🔥 Cookie-based admin check
 function adminProcedure(procedure: typeof publicProcedure) {
   return procedure.use(({ ctx, next }) => {
     const cookie = ctx.req.headers.cookie || "";
-
     const match = cookie.match(/admin=(\d+)/);
+
     if (!match) {
       throw new TRPCError({
         code: "UNAUTHORIZED",
@@ -50,8 +39,8 @@ export const appRouter = router({
     // ✅ Read admin from cookie
     me: publicProcedure.query(async ({ ctx }) => {
       const cookie = ctx.req.headers.cookie || "";
-
       const match = cookie.match(/admin=(\d+)/);
+
       if (!match) return null;
 
       const adminId = parseInt(match[1]);
@@ -68,7 +57,7 @@ export const appRouter = router({
       return rows && rows.length > 0 ? rows[0] : null;
     }),
 
-    // ✅ Login (email + password)
+    // ✅ LOGIN (PLAIN TEXT — DEBUG SAFE)
     login: publicProcedure
       .input(
         z.object({
@@ -79,16 +68,22 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const admin = await getAdminByEmail(input.email);
 
-        if (!admin || admin.password !== input.password) {
+        console.log("LOGIN DEBUG:", {
+          inputPassword: input.password,
+          dbPassword: admin?.password,
+        });
+
+        if (!admin || String(admin.password) !== String(input.password)) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: "Invalid email or password",
           });
         }
 
+        // ✅ COOKIE FIX FOR RENDER
         ctx.res.setHeader(
           "Set-Cookie",
-          `admin=${admin.id}; Path=/; HttpOnly; SameSite=Lax`
+          `admin=${admin.id}; Path=/; HttpOnly; Secure; SameSite=None`
         );
 
         return {
@@ -115,6 +110,7 @@ export const appRouter = router({
     list: publicProcedure.query(async () => {
       return getAllPackages();
     }),
+
     getById: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
@@ -154,12 +150,14 @@ export const appRouter = router({
           }
 
           let customer = await getCustomerByEmail(input.email);
+
           if (!customer) {
             await createCustomer({
               name: input.name,
               email: input.email,
               phone: input.phone,
             });
+
             customer = await getCustomerByEmail(input.email);
           }
 
@@ -171,6 +169,7 @@ export const appRouter = router({
           }
 
           const pkg = await getPackageById(input.packageId);
+
           if (!pkg) {
             throw new TRPCError({
               code: "NOT_FOUND",
@@ -180,6 +179,7 @@ export const appRouter = router({
 
           const checkIn = new Date(input.checkInDate);
           const checkOut = new Date(input.checkOutDate);
+
           const nights = Math.ceil(
             (checkOut.getTime() - checkIn.getTime()) /
               (1000 * 60 * 60 * 24)
@@ -228,7 +228,6 @@ export const appRouter = router({
         }
       }),
 
-    // ❗ still protectedProcedure (fixed in next step)
     list: adminProcedure(protectedProcedure).query(async () => {
       return getAllReservations();
     }),
