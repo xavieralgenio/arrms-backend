@@ -14,6 +14,7 @@ import type {
   GetUserInfoWithJwtRequest,
   GetUserInfoWithJwtResponse,
 } from "./types/manusTypes";
+
 // Utility function
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
@@ -91,6 +92,31 @@ class SDKServer {
     this.oauthService = new OAuthService(this.client);
   }
 
+  /**
+   * ✅ NEW: Generate OAuth authorization URL
+   */
+  async getAuthorizationUrl(): Promise<string> {
+    const baseUrl = ENV.oAuthServerUrl;
+
+    if (!baseUrl) {
+      throw new Error("OAUTH_SERVER_URL is not configured");
+    }
+
+    const url = new URL("/authorize", baseUrl);
+
+    const redirectUri = `${ENV.baseUrl}/api/oauth/callback`;
+
+    // encode redirectUri into state (your backend already decodes this)
+    const state = Buffer.from(redirectUri).toString("base64");
+
+    url.searchParams.set("client_id", ENV.appId);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("state", state);
+
+    return url.toString();
+  }
+
   private deriveLoginMethod(
     platforms: unknown,
     fallback: string | null | undefined
@@ -113,11 +139,6 @@ class SDKServer {
     return first ? first.toLowerCase() : null;
   }
 
-  /**
-   * Exchange OAuth authorization code for access token
-   * @example
-   * const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-   */
   async exchangeCodeForToken(
     code: string,
     state: string
@@ -125,11 +146,6 @@ class SDKServer {
     return this.oauthService.getTokenByCode(code, state);
   }
 
-  /**
-   * Get user information using access token
-   * @example
-   * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-   */
   async getUserInfo(accessToken: string): Promise<GetUserInfoResponse> {
     const data = await this.oauthService.getUserInfoByToken({
       accessToken,
@@ -149,7 +165,6 @@ class SDKServer {
     if (!cookieHeader) {
       return new Map<string, string>();
     }
-
     const parsed = parseCookieHeader(cookieHeader);
     return new Map(Object.entries(parsed));
   }
@@ -159,11 +174,6 @@ class SDKServer {
     return new TextEncoder().encode(secret);
   }
 
-  /**
-   * Create a session token for a Manus user openId
-   * @example
-   * const sessionToken = await sdk.createSessionToken(userInfo.openId);
-   */
   async createSessionToken(
     openId: string,
     options: { expiresInMs?: number; name?: string } = {}
@@ -217,17 +227,11 @@ class SDKServer {
         !isNonEmptyString(appId) ||
         !isNonEmptyString(name)
       ) {
-        console.warn("[Auth] Session payload missing required fields");
         return null;
       }
 
-      return {
-        openId,
-        appId,
-        name,
-      };
-    } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
+      return { openId, appId, name };
+    } catch {
       return null;
     }
   }
@@ -249,6 +253,7 @@ class SDKServer {
       (data as any)?.platforms,
       (data as any)?.platform ?? data.platform ?? null
     );
+
     return {
       ...(data as any),
       platform: loginMethod,
@@ -257,7 +262,6 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
-    // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
     const session = await this.verifySession(sessionCookie);
@@ -270,22 +274,16 @@ class SDKServer {
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, sync from OAuth server automatically
     if (!user) {
-      try {
-        const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
-        await db.upsertUser({
-          openId: userInfo.openId,
-          name: userInfo.name || null,
-          email: userInfo.email ?? null,
-          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-          lastSignedIn: signedInAt,
-        });
-        user = await db.getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
-      }
+      const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
+      await db.upsertUser({
+        openId: userInfo.openId,
+        name: userInfo.name || null,
+        email: userInfo.email ?? null,
+        loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+        lastSignedIn: signedInAt,
+      });
+      user = await db.getUserByOpenId(userInfo.openId);
     }
 
     if (!user) {

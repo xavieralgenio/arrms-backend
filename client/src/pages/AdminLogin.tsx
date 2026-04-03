@@ -1,20 +1,21 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
   const [password, setPassword] = useState("");
 
-  function login() {
-    // TEMP MVP AUTH
-    if (password === "arrmsadmin") {
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ role: "admin" })
-      );
+  // ✅ tRPC login mutation
+  const loginMutation = trpc.auth.login.useMutation();
 
+  async function login() {
+    try {
+      await loginMutation.mutateAsync({ password });
+
+      // ✅ Redirect after successful login
       setLocation("/admin");
-    } else {
+    } catch (err) {
       alert("Wrong password");
     }
   }
@@ -30,7 +31,9 @@ export default function AdminLogin() {
         onChange={(e) => setPassword(e.target.value)}
       />
 
-      <button onClick={login}>Login</button>
+      <button onClick={login} disabled={loginMutation.isLoading}>
+        {loginMutation.isLoading ? "Logging in..." : "Login"}
+      </button>
     </div>
   );
 }

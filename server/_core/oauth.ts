@@ -10,6 +10,27 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Express) {
+
+  /**
+   * ✅ NEW: Start OAuth login
+   * This fixes your 404 error
+   */
+  app.get("/app-auth", async (req: Request, res: Response) => {
+    try {
+      // 👉 This should generate the OAuth provider URL
+      const authUrl = await sdk.getAuthorizationUrl();
+
+      // Redirect user to OAuth provider
+      res.redirect(authUrl);
+    } catch (error) {
+      console.error("[OAuth] Failed to start auth", error);
+      res.status(500).json({ error: "Failed to start OAuth flow" });
+    }
+  });
+
+  /**
+   * ✅ EXISTING: OAuth callback
+   */
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
@@ -42,7 +63,10 @@ export function registerOAuthRoutes(app: Express) {
       });
 
       const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
 
       res.redirect(302, "/");
     } catch (error) {

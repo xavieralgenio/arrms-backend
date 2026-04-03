@@ -37,11 +37,53 @@ function adminProcedure(procedure: typeof protectedProcedure) {
 
 export const appRouter = router({
   system: systemRouter,
+
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    // ✅ STEP 2: Read cookie manually instead of ctx.user
+    me: publicProcedure.query(({ ctx }) => {
+      const cookie = ctx.req.headers.cookie || "";
+      const isAdmin = cookie.includes("admin=true");
+
+      if (!isAdmin) return null;
+
+      return {
+        role: "admin",
+      };
+    }),
+
+    // ✅ STEP 1: Add login mutation
+    login: publicProcedure
+      .input(
+        z.object({
+          password: z.string(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "arrmsadmin";
+
+        if (input.password !== ADMIN_PASSWORD) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Invalid password",
+          });
+        }
+
+        // Set simple admin cookie
+        ctx.res.setHeader(
+          "Set-Cookie",
+          "admin=true; Path=/; HttpOnly; SameSite=Lax"
+        );
+
+        return { success: true };
+      }),
+
+    // ✅ STEP 3: Clear cookie on logout
     logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      ctx.res.setHeader(
+        "Set-Cookie",
+        "admin=; Path=/; HttpOnly; Max-Age=0"
+      );
+
       return {
         success: true,
       } as const;
@@ -75,7 +117,6 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         try {
-          // Check date capacity first
           const hasCapacity = await checkDateCapacity(
             input.checkInDate,
             input.checkOutDate,
@@ -89,7 +130,6 @@ export const appRouter = router({
             });
           }
 
-          // Get or create customer
           let customer = await getCustomerByEmail(input.email);
           if (!customer) {
             await createCustomer({
@@ -104,19 +144,16 @@ export const appRouter = router({
             throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create customer" });
           }
 
-          // Get package details
           const pkg = await getPackageById(input.packageId);
           if (!pkg) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Package not found" });
           }
 
-          // Calculate total price
           const checkIn = new Date(input.checkInDate);
           const checkOut = new Date(input.checkOutDate);
           const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
           const totalPrice = parseFloat(pkg.basePrice.toString()) * Math.max(nights, 1) * input.numberOfGuests;
 
-          // Create reservation
           const reservationId = await createReservation({
             customerId: customer.id,
             packageId: input.packageId,
@@ -128,14 +165,12 @@ export const appRouter = router({
             totalPrice: totalPrice.toString() as any,
           });
 
-          // Update availability/capacity for the dates
           await updateDateCapacityAfterReservation(
             input.checkInDate,
             input.checkOutDate,
             input.numberOfGuests
           );
 
-          // Create payment record
           await createPayment({
             reservationId: reservationId,
             status: "pending",
