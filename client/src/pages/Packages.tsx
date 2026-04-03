@@ -61,13 +61,6 @@ export default function Packages() {
             >
               Packages
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setLocation("/admin")}
-              className="text-slate-700 hover:text-emerald-600"
-            >
-              Admin
-            </Button>
           </div>
         </div>
       </nav>
