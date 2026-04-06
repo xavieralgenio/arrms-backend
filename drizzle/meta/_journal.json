@@ -15,6 +15,13 @@
       "when": 1775103032424,
       "tag": "0001_fast_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1775317844486,
+      "tag": "0002_massive_alex_power",
+      "breakpoints": true
     }
   ]
 }

@@ -59,10 +59,10 @@ export default function Packages() {
 
             <Button
               variant="ghost"
-              onClick={() => setLocation("/packages")}
+              onClick={() => setLocation("/accomodations")}
               className="text-slate-700 hover:text-emerald-600 font-semibold"
             >
-              Packages
+              Accomodations
             </Button>
 
             {/* ✅ NEW: LOGIN BUTTON */}
@@ -79,7 +79,7 @@ export default function Packages() {
       {/* Header */}
       <section className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-12">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-4">Our Packages</h1>
+          <h1 className="text-4xl font-bold mb-4">Our Accomodations</h1>
           <p className="text-xl text-emerald-50">Choose the perfect package for your stay</p>
         </div>
       </section>

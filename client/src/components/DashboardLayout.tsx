@@ -20,15 +20,19 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, BookOpen } from "lucide-react"; // ✅ added BookOpen
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
+// ✅ UPDATED MENU ITEMS
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: LayoutDashboard, label: "Home", path: "/" },
+  { icon: Users, label: "Packages", path: "/some-path" },
+
+  // 🔥 NEW BOOK MENU
+  { icon: BookOpen, label: "Book", path: "/book" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -205,7 +209,7 @@ function DashboardLayoutContent({
               <Button
                 className="w-full"
                 onClick={() => {
-                  window.location.href = "/login"; 
+                  window.location.href = "/login";
                 }}
               >
                 Login
@@ -227,7 +231,7 @@ function DashboardLayoutContent({
           ) : (
             <Button
               onClick={() => {
-                window.location.href = "/login"; 
+                window.location.href = "/login";
               }}
             >
               Login

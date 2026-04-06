@@ -1,0 +1,200 @@
+arrms-backend-main/
+│
+├── client/                      # 🎨 FRONTEND (React + Vite)
+│   │                            # Everything the user sees and interacts with
+│   │                            # Talks to backend via tRPC (type-safe API calls)
+│   │
+│   ├── src/
+│   │   │
+│   │   ├── pages/              # 📄 ROUTE-LEVEL UI (like FastAPI "views")
+│   │   │                       # Each file = a screen in the app
+│   │   │                       # Usually mapped via React Router
+│   │   │
+│   │   │   ├── Home.tsx        # Landing page / dashboard entry
+│   │   │   ├── Login.tsx       # Auth UI (calls backend auth procedures)
+│   │   │   ├── Register.tsx    # User registration
+│   │   │   ├── AdminDashboard.tsx # Admin-only UI (protected route)
+│   │   │   ├── Book.tsx        # Reservation/booking UI
+│   │   │   └── ...
+│   │   │
+│   │   ├── components/         # 🧩 REUSABLE UI BUILDING BLOCKS
+│   │   │                       # Used across multiple pages
+│   │   │
+│   │   │   ├── DashboardLayout.tsx # Layout wrapper (sidebar, header, etc.)
+│   │   │   ├── AdminRoute.tsx  # Route guard (checks auth/role before access)
+│   │   │   ├── Map.tsx         # Map UI (likely connected to server/map.ts)
+│   │   │   ├── AIChatBox.tsx   # Chat UI (connected to LLM backend)
+│   │   │   └── ui/             # Design system (buttons, modals, inputs)
+│   │   │
+│   │   ├── hooks/              # ⚙️ CUSTOM REACT LOGIC
+│   │   │                       # Encapsulates reusable behavior (state + logic)
+│   │   │
+│   │   │   ├── useMobile.tsx   # Detects screen size / responsiveness
+│   │   │   ├── usePersistFn.ts # Stable function references (performance)
+│   │   │   └── useComposition.ts # Input handling (IME / typing)
+│   │   │
+│   │   ├── contexts/           # 🌐 GLOBAL STATE (React Context API)
+│   │   │                       # Shared across entire app without props drilling
+│   │   │
+│   │   │   └── ThemeContext.tsx # Light/Dark mode or UI theme
+│   │   │
+│   │   ├── lib/                # 🔌 FRONTEND INFRASTRUCTURE
+│   │   │
+│   │   │   ├── trpc.ts         # ⭐ MOST IMPORTANT FRONTEND FILE
+│   │   │   │                   # Creates client to call backend procedures
+│   │   │   │                   # Example:
+│   │   │   │                   # trpc.system.notifyOwner.mutate(...)
+│   │   │   │
+│   │   │   └── utils.ts        # Helper functions (formatting, etc.)
+│   │   │
+│   │   ├── _core/              # 🧠 CORE FRONTEND LOGIC
+│   │   │
+│   │   │   └── hooks/useAuth.ts
+│   │   │       # Handles login state, tokens, user session
+│   │   │       # Connects to backend auth system
+│   │   │
+│   │   ├── main.tsx            # 🚪 FRONTEND ENTRY POINT
+│   │   │                       # Renders React app into DOM
+│   │   │
+│   │   └── App.tsx             # 🧭 ROOT COMPONENT
+│   │                           # Defines routing + layout structure
+│   │
+│   └── index.html              # Base HTML file for Vite
+│
+├── server/                     # ⚙️ BACKEND (tRPC API SERVER)
+│   │                            # Handles logic, auth, DB, integrations
+│   │                            # No REST → uses tRPC (function-based API)
+│   │
+│   ├── routers.ts              # 🧩 ROUTER COMPOSITION
+│   │                           # Combines all routers into one API
+│   │                           # Example:
+│   │                           # appRouter = { system, auth, reservation }
+│   │
+│   ├── db.ts                   # 🗄️ DATABASE CONNECTION
+│   │                           # Initializes Drizzle ORM
+│   │                           # Equivalent to SQLAlchemy session setup
+│   │
+│   ├── storage.ts              # 📦 FILE/DATA STORAGE
+│   │                           # Handles uploads, file persistence, etc.
+│   │
+│   ├── _core/                  # 🧠 BACKEND CORE (IMPORTANT)
+│   │   │                       # This is where most logic lives
+│   │   │
+│   │   ├── index.ts            # 🚀 SERVER ENTRY POINT
+│   │   │                       # Starts server (like FastAPI main.py)
+│   │   │
+│   │   ├── trpc.ts             # 🔌 tRPC SETUP
+│   │   │                       # Defines:
+│   │   │                       # - router()
+│   │   │                       # - publicProcedure / protectedProcedure
+│   │   │
+│   │   ├── context.ts          # 🌐 REQUEST CONTEXT
+│   │   │                       # Injects per-request data:
+│   │   │                       # - user (auth)
+│   │   │                       # - database connection
+│   │   │                       # - cookies/session
+│   │   │
+│   │   ├── systemRouter.ts     # 📡 API ROUTES (tRPC style)
+│   │   │                       # Equivalent to FastAPI routes
+│   │   │
+│   │   │                       # Example endpoints:
+│   │   │                       # - health (GET)
+│   │   │                       # - notifyOwner (POST)
+│   │   │
+│   │   │                       # Key concepts:
+│   │   │                       # - .query() = GET
+│   │   │                       # - .mutation() = POST/PUT/DELETE
+│   │   │                       # - zod = request validation
+│   │   │
+│   │   ├── notification.ts     # 🔔 SERVICE LAYER (implicit)
+│   │   │                       # Contains business logic for notifications
+│   │   │                       # Called by systemRouter
+│   │   │
+│   │   │                       # Example flow:
+│   │   │                       # router → notification.ts → external service
+│   │   │
+│   │   ├── oauth.ts            # 🔐 AUTHENTICATION (OAuth)
+│   │   │                       # Google / third-party login
+│   │   │
+│   │   ├── cookies.ts          # 🍪 SESSION MANAGEMENT
+│   │   │                       # Read/write cookies for auth/session
+│   │   │
+│   │   ├── env.ts              # ⚙️ ENVIRONMENT CONFIG
+│   │   │                       # Loads .env variables safely
+│   │   │
+│   │   ├── dataApi.ts          # 🌍 EXTERNAL API INTEGRATION
+│   │   │                       # Calls external services (REST APIs)
+│   │   │
+│   │   ├── llm.ts              # 🤖 AI LOGIC (LLM)
+│   │   │                       # ChatGPT-like features
+│   │   │
+│   │   ├── imageGeneration.ts  # 🖼️ AI IMAGE GENERATION
+│   │   │
+│   │   ├── voiceTranscription.ts # 🎙️ SPEECH → TEXT
+│   │   │
+│   │   ├── map.ts              # 🗺️ MAP LOGIC
+│   │   │                       # Coordinates, locations, geospatial logic
+│   │   │
+│   │   ├── sdk.ts              # 🔌 SDK WRAPPERS
+│   │   │                       # External libraries abstraction
+│   │   │
+│   │   └── types/              # 🧾 BACKEND TYPES
+│   │                           # Internal TypeScript types
+│   │
+│   ├── tests/                  # 🧪 BACKEND TESTS
+│   │   ├── reservations.test.ts
+│   │   └── auth.logout.test.ts
+│
+├── shared/                     # 🔁 SHARED LAYER (FRONT + BACK)
+│   │                           # This is a HUGE advantage of tRPC
+│   │
+│   ├── types.ts                # 🧾 SHARED TYPES
+│   │                           # Used by BOTH frontend and backend
+│   │                           # Replaces "schemas" layer
+│   │
+│   ├── const.ts                # 📌 CONSTANTS
+│   │                           # Shared config values
+│   │
+│   └── _core/
+│       └── errors.ts           # ❌ SHARED ERROR HANDLING
+│                               # Standardized error structure
+│
+├── drizzle/                    # 🗄️ DATABASE LAYER (ORM)
+│   │
+│   ├── schema.ts               # 📊 DATABASE MODELS (CRITICAL)
+│   │                           # Defines tables (like SQLAlchemy models)
+│   │
+│   │                           # Example:
+│   │                           # reservations table
+│   │                           # users table
+│   │
+│   ├── relations.ts            # 🔗 TABLE RELATIONSHIPS
+│   │                           # Foreign keys, joins
+│   │
+│   ├── migrations/             # 🧱 SCHEMA VERSIONING
+│   │                           # Tracks DB changes over time
+│   │
+│   └── *.sql                   # Raw SQL (generated or manual)
+│
+├── scripts/                    # 🛠️ UTILITY / DEV SCRIPTS
+│   │
+│   └── seed-db.mjs             # 🌱 DATABASE SEEDING
+│                               # Inserts initial/test data
+│
+├── config/                     # ⚙️ PROJECT CONFIGURATION
+│   │
+│   ├── drizzle.config.ts       # DB config (connection, migrations)
+│   ├── vite.config.ts          # Frontend build/dev server config
+│   ├── vitest.config.ts        # Testing setup
+│   └── tsconfig.json           # TypeScript compiler config
+│
+├── .env                        # 🔐 SECRETS (DO NOT COMMIT)
+│                               # DB URL, API keys, tokens
+│
+├── package.json                # 📦 DEPENDENCIES + SCRIPTS
+│                               # npm run dev, build, etc.
+│
+├── start.sh                    # 🚀 START SCRIPT (deployment)
+├── Procfile                    # ☁️ DEPLOYMENT (Heroku-style)
+│
+└── README / docs               # 📚 DOCUMENTATION
